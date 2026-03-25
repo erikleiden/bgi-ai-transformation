@@ -13,10 +13,13 @@ export default function Step3Role({ category, selected, onSelect }) {
       </p>
       <div className="grid gap-3">
         {filtered.map((role) => (
-          <button
+          <div
             key={role.id}
+            role="button"
+            tabIndex={0}
             onClick={() => onSelect(role.id)}
-            className={`p-5 rounded-lg border-2 text-left transition-all ${
+            onKeyDown={(e) => e.key === 'Enter' && onSelect(role.id)}
+            className={`p-5 rounded-lg border-2 text-left transition-all cursor-pointer ${
               selected === role.id
                 ? 'border-bgi-navy bg-blue-50'
                 : 'border-gray-200 hover:border-bgi-midblue hover:bg-gray-50'
@@ -50,7 +53,7 @@ export default function Step3Role({ category, selected, onSelect }) {
               </InfoTip>
               <span>{role.tasks.length} tasks</span>
             </div>
-          </button>
+          </div>
         ))}
       </div>
     </div>

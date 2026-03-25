@@ -85,9 +85,12 @@ export default function Step4Tags({ role, taskTags, onUpdateTags }) {
                   task.impacted ? 'bg-white' : 'bg-gray-50'
                 }`}
               >
-                <button
+                <div
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setExpandedTask(isExpanded ? null : task.id)}
-                  className="w-full p-3 flex items-start gap-3 text-left"
+                  onKeyDown={(e) => e.key === 'Enter' && setExpandedTask(isExpanded ? null : task.id)}
+                  className="w-full p-3 flex items-start gap-3 text-left cursor-pointer"
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-800 leading-snug">{task.text}</p>
@@ -105,7 +108,7 @@ export default function Step4Tags({ role, taskTags, onUpdateTags }) {
                   ) : (
                     <ChevronDown className="h-4 w-4 text-gray-400 mt-1 shrink-0" />
                   )}
-                </button>
+                </div>
 
                 {isExpanded && (
                   <div className="px-3 pb-3 border-t pt-3">
