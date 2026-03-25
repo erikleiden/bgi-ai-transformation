@@ -1,121 +1,141 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState, useCallback } from 'react'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { ROLES } from './data/roles'
+import Header from './components/Header'
+import Footer from './components/Footer'
+import StepNav from './components/StepNav'
+import Step1Category from './components/Step1Category'
+import Step2Intent from './components/Step2Intent'
+import Step3Role from './components/Step3Role'
+import Step4Tags from './components/Step4Tags'
+import Step5Questions from './components/Step5Questions'
+import Step6Synthesis from './components/Step6Synthesis'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [currentStep, setCurrentStep] = useState(1)
+  const [completedSteps, setCompletedSteps] = useState([])
+
+  const [category, setCategory] = useState(null)
+  const [intent, setIntent] = useState(null)
+  const [roleId, setRoleId] = useState(null)
+
+  const [taskTags, setTaskTags] = useState({})
+  const [taskAnswers, setTaskAnswers] = useState({})
+
+  const selectedRole = ROLES.find((r) => r.id === roleId)
+
+  const completeStep = useCallback(
+    (step) => {
+      if (!completedSteps.includes(step)) {
+        setCompletedSteps((prev) => [...prev, step])
+      }
+    },
+    [completedSteps]
+  )
+
+  const canProceed = () => {
+    switch (currentStep) {
+      case 1: return !!category
+      case 2: return !!intent
+      case 3: return !!roleId
+      case 4: return true
+      case 5: return true
+      default: return false
+    }
+  }
+
+  const handleNext = () => {
+    if (canProceed()) {
+      completeStep(currentStep)
+      setCurrentStep((s) => Math.min(6, s + 1))
+    }
+  }
+
+  const handleBack = () => {
+    setCurrentStep((s) => Math.max(1, s - 1))
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <TooltipProvider delayDuration={200}>
+      <div className="min-h-screen flex flex-col bg-gray-50">
+        <Header />
+        <StepNav
+          currentStep={currentStep}
+          completedSteps={completedSteps}
+          onStepClick={(step) => setCurrentStep(step)}
+        />
 
-      <div className="ticks"></div>
+        <main className="flex-1 px-4 sm:px-6 py-6 overflow-y-auto">
+          {currentStep === 1 && (
+            <Step1Category
+              selected={category}
+              onSelect={(c) => {
+                setCategory(c)
+                setRoleId(null)
+              }}
+            />
+          )}
+          {currentStep === 2 && <Step2Intent selected={intent} onSelect={setIntent} />}
+          {currentStep === 3 && (
+            <Step3Role
+              category={category}
+              selected={roleId}
+              onSelect={(id) => setRoleId(id)}
+            />
+          )}
+          {currentStep === 4 && selectedRole && (
+            <Step4Tags
+              role={selectedRole}
+              taskTags={taskTags}
+              onUpdateTags={(taskId, tags) =>
+                setTaskTags((prev) => ({ ...prev, [taskId]: tags }))
+              }
+            />
+          )}
+          {currentStep === 5 && selectedRole && (
+            <Step5Questions
+              role={selectedRole}
+              taskTags={taskTags}
+              taskAnswers={taskAnswers}
+              onUpdateAnswers={(taskId, answers) =>
+                setTaskAnswers((prev) => ({ ...prev, [taskId]: answers }))
+              }
+            />
+          )}
+          {currentStep === 6 && selectedRole && (
+            <Step6Synthesis
+              role={selectedRole}
+              taskTags={taskTags}
+              taskAnswers={taskAnswers}
+            />
+          )}
+        </main>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        <div className="border-t bg-white px-6 py-3 flex justify-between items-center">
+          <button
+            onClick={handleBack}
+            disabled={currentStep === 1}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+          {currentStep < 6 && (
+            <button
+              onClick={handleNext}
+              disabled={!canProceed()}
+              className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-medium bg-bgi-navy text-white hover:bg-bgi-navy/90 disabled:opacity-30 transition-colors"
+            >
+              {currentStep < 5 ? 'Continue' : 'View Synthesis'}
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        <Footer />
+      </div>
+    </TooltipProvider>
   )
 }
-
-export default App
