@@ -1,12 +1,48 @@
 import { useMemo } from 'react'
-import { CORE_QUESTIONS, routeTask, BUCKETS } from '../data/roles'
+import { CORE_QUESTIONS, routeTask, BUCKETS, getEnrichedClusters } from '../data/roles'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import InfoTip from './InfoTip'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 
-function BucketCard({ bucketId, tasks, taskAnswers, taskTags }) {
+// Resolve cluster-level answers/tags to per-task bucket assignments
+function resolveTaskBuckets(role, clusterAnswers, clusterTags) {
+  const bucketMap = {
+    'human-led': [],
+    'human-in-the-loop': [],
+    'human-on-the-loop': [],
+    'fully-automated': [],
+  }
+  const taskToCluster = {}
+
+  for (const cluster of role.clusters) {
+    const answers = clusterAnswers[cluster.id] || {}
+    const tags = clusterTags[cluster.id] || []
+    const allAnswered = CORE_QUESTIONS.every((q) => answers[q.id])
+
+    for (const taskId of cluster.taskIds) {
+      taskToCluster[taskId] = cluster.id
+      const task = role.tasks.find((t) => t.id === taskId)
+      if (!task || !task.impacted || !allAnswered) continue
+      const bucket = routeTask(answers, tags)
+      bucketMap[bucket].push({ ...task, clusterId: cluster.id })
+    }
+  }
+
+  return { bucketMap, taskToCluster }
+}
+
+function ClusterGroupedBucketCard({ bucketId, tasks, role }) {
   const b = BUCKETS[bucketId]
+  // Group tasks by cluster
+  const clusterMap = {}
+  for (const task of tasks) {
+    const cluster = role.clusters.find((c) => c.taskIds.includes(task.id))
+    const key = cluster?.id || 'unknown'
+    if (!clusterMap[key]) clusterMap[key] = { cluster, tasks: [] }
+    clusterMap[key].tasks.push(task)
+  }
+
   return (
     <Card className="border-l-4" style={{ borderLeftColor: b.color }}>
       <CardHeader className="pb-2">
@@ -17,33 +53,22 @@ function BucketCard({ bucketId, tasks, taskAnswers, taskTags }) {
         <p className="text-xs text-gray-500">{b.description}</p>
       </CardHeader>
       <CardContent>
-        <ul className="space-y-2">
-          {tasks.map((task) => {
-            const answers = taskAnswers[task.id] || {}
-            const tags = taskTags[task.id] || []
-            return (
-              <li key={task.id} className="text-sm">
-                <p className="text-gray-800 leading-snug">{task.text}</p>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {answers.expertise && (
-                    <Badge variant="outline" className="text-xs">
-                      {answers.expertise}
-                    </Badge>
-                  )}
-                  {tags.map((t) => (
-                    <Badge
-                      key={t}
-                      variant="outline"
-                      className="text-xs bg-amber-50 text-amber-700 border-amber-200"
-                    >
-                      {t}
-                    </Badge>
-                  ))}
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+        <div className="space-y-3">
+          {Object.values(clusterMap).map(({ cluster, tasks: clusterTasks }) => (
+            <div key={cluster?.id || 'unknown'}>
+              <p className="text-xs font-medium text-gray-500 mb-1">
+                {cluster?.label || 'Unclustered'}
+              </p>
+              <ul className="space-y-1 pl-3">
+                {clusterTasks.map((task) => (
+                  <li key={task.id} className="text-sm text-gray-700 list-disc">
+                    {task.text}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   )
@@ -51,7 +76,6 @@ function BucketCard({ bucketId, tasks, taskAnswers, taskTags }) {
 
 function SkillImplications({ role, bucketMap }) {
   const implications = useMemo(() => {
-    // Derive skill implications from task allocations
     const automatedCount = (bucketMap['fully-automated'] || []).length
     const hotlCount = (bucketMap['human-on-the-loop'] || []).length
     const hitlCount = (bucketMap['human-in-the-loop'] || []).length
@@ -65,13 +89,13 @@ function SkillImplications({ role, bucketMap }) {
     return role.skills.map((skill) => {
       let status, color
       if (automationRate > 0.6) {
-        status = 'Declining — most associated tasks automated'
+        status = 'Declining \u2014 most associated tasks automated'
         color = 'text-red-600'
       } else if (automationRate > 0.3) {
-        status = 'Transforming — shifting from execution to oversight'
+        status = 'Transforming \u2014 shifting from execution to oversight'
         color = 'text-amber-600'
       } else {
-        status = 'Persisting — remains core to the human-led work'
+        status = 'Persisting \u2014 remains core to the human-led work'
         color = 'text-green-600'
       }
       return { ...skill, status, color }
@@ -110,7 +134,7 @@ function SkillImplications({ role, bucketMap }) {
   )
 }
 
-function ExpertiseAnalysis({ taskAnswers, bucketMap }) {
+function ExpertiseAnalysis({ clusterAnswers, bucketMap }) {
   const analysis = useMemo(() => {
     const allTasks = Object.values(bucketMap).flat()
     let routineAutomated = 0
@@ -118,8 +142,10 @@ function ExpertiseAnalysis({ taskAnswers, bucketMap }) {
     let routineTotal = 0
     let expertTotal = 0
 
+    // Get the cluster-level expertise answer for each task
     allTasks.forEach((task) => {
-      const answers = taskAnswers[task.id] || {}
+      const clusterId = task.clusterId
+      const answers = clusterAnswers[clusterId] || {}
       const bucket = (() => {
         for (const [b, tasks] of Object.entries(bucketMap)) {
           if (tasks.some((t) => t.id === task.id)) return b
@@ -142,19 +168,19 @@ function ExpertiseAnalysis({ taskAnswers, bucketMap }) {
     if (routineRate > expertRate && routineRate > 0.3) {
       return {
         direction: 'up',
-        text: 'Expertise bar is rising. Primarily routine tasks are being automated, concentrating the role around its most expert functions. This implies a smaller, more specialized, potentially higher-paid talent pool.',
+        text: 'Expertise bar is rising. Primarily routine task clusters are being automated, concentrating the role around its most expert functions. This implies a smaller, more specialized, potentially higher-paid talent pool.',
       }
     } else if (expertRate > routineRate && expertRate > 0.3) {
       return {
         direction: 'down',
-        text: 'Expertise bar is lowering. Expert tasks are being automated, making the role more accessible. This expands the talent pool but may reduce compensation expectations.',
+        text: 'Expertise bar is lowering. Expert task clusters are being automated, making the role more accessible. This expands the talent pool but may reduce compensation expectations.',
       }
     }
     return {
       direction: 'neutral',
-      text: 'Mixed expertise impact. Both routine and expert tasks are being redistributed, leading to a transformed rather than simply elevated or simplified role.',
+      text: 'Mixed expertise impact. Both routine and expert task clusters are being redistributed, leading to a transformed rather than simply elevated or simplified role.',
     }
-  }, [taskAnswers, bucketMap])
+  }, [clusterAnswers, bucketMap])
 
   return (
     <Card>
@@ -182,42 +208,47 @@ function ExpertiseAnalysis({ taskAnswers, bucketMap }) {
   )
 }
 
-function Flags({ taskTags, bucketMap }) {
+function Flags({ clusterTags, bucketMap, role }) {
   const flags = useMemo(() => {
     const result = []
     const allTasks = Object.values(bucketMap).flat()
 
-    allTasks.forEach((task) => {
-      const tags = taskTags[task.id] || []
-      const bucket = (() => {
-        for (const [b, tasks] of Object.entries(bucketMap)) {
-          if (tasks.some((t) => t.id === task.id)) return b
-        }
-        return null
-      })()
+    // Build cluster -> bucket mapping
+    const clusterBuckets = {}
+    for (const [bucketId, tasks] of Object.entries(bucketMap)) {
+      for (const task of tasks) {
+        const cluster = role.clusters.find((c) => c.taskIds.includes(task.id))
+        if (cluster) clusterBuckets[cluster.id] = bucketId
+      }
+    }
+
+    for (const cluster of role.clusters) {
+      const tags = clusterTags[cluster.id] || []
+      const bucket = clusterBuckets[cluster.id]
+      if (!bucket) continue
 
       if (tags.includes('developmental') && (bucket === 'fully-automated' || bucket === 'human-on-the-loop')) {
         result.push({
           type: 'warning',
-          text: `"${task.text.substring(0, 70)}..." is tagged as developmental but routed to ${BUCKETS[bucket].label}. Automating may erode the learning pipeline.`,
+          text: `"${cluster.label}" is tagged as developmental but routed to ${BUCKETS[bucket].label}. Automating these tasks may erode the learning pipeline.`,
         })
       }
       if (tags.includes('atrophy-risk') && (bucket === 'human-on-the-loop' || bucket === 'human-in-the-loop')) {
         result.push({
           type: 'caution',
-          text: `"${task.text.substring(0, 70)}..." has atrophy risk in a ${BUCKETS[bucket].label} configuration. Human oversight may degrade over time. Consider rotation or manual practice periods.`,
+          text: `"${cluster.label}" has atrophy risk in a ${BUCKETS[bucket].label} configuration. Human oversight may degrade over time. Consider rotation or manual practice periods.`,
         })
       }
       if (tags.includes('relationship-critical') && bucket === 'fully-automated') {
         result.push({
           type: 'warning',
-          text: `"${task.text.substring(0, 70)}..." is relationship-critical but routed to fully automated. This may destroy relational value.`,
+          text: `"${cluster.label}" is relationship-critical but routed to fully automated. This may destroy relational value.`,
         })
       }
-    })
+    }
 
     return result
-  }, [taskTags, bucketMap])
+  }, [clusterTags, bucketMap, role.clusters])
 
   if (flags.length === 0) return null
 
@@ -246,33 +277,52 @@ function Flags({ taskTags, bucketMap }) {
   )
 }
 
-export default function Step6Synthesis({ role, taskTags, taskAnswers }) {
-  const bucketMap = useMemo(() => {
-    const map = {
-      'human-led': [],
-      'human-in-the-loop': [],
-      'human-on-the-loop': [],
-      'fully-automated': [],
-    }
+function RoleNarrative({ role, bucketMap }) {
+  const autoCount = (bucketMap['fully-automated']?.length || 0) + (bucketMap['human-on-the-loop']?.length || 0)
+  const humanCount = (bucketMap['human-led']?.length || 0) + (bucketMap['human-in-the-loop']?.length || 0)
+  const total = autoCount + humanCount
 
-    role.tasks.forEach((task) => {
-      const answers = taskAnswers[task.id] || {}
-      const tags = taskTags[task.id] || []
-      const allAnswered = CORE_QUESTIONS.every((q) => answers[q.id])
+  if (total === 0) return <p className="text-sm text-gray-500">Complete cluster assessments to generate narrative.</p>
 
-      if (allAnswered) {
-        const bucket = routeTask(answers, tags)
-        map[bucket].push(task)
-      }
-    })
+  const autoRate = autoCount / total
+  const humanLedTasks = bucketMap['human-led'] || []
+  const fullyAutoTasks = bucketMap['fully-automated'] || []
 
-    return map
-  }, [role.tasks, taskTags, taskAnswers])
+  let narrative = ''
+  if (autoRate > 0.6) {
+    narrative = `Based on your assessment, the ${role.title} role is poised for significant transformation. Over ${Math.round(autoRate * 100)}% of assessed tasks can be meaningfully automated or operate with minimal human oversight. `
+  } else if (autoRate > 0.3) {
+    narrative = `The ${role.title} role shows a balanced transformation profile. About ${Math.round(autoRate * 100)}% of tasks can be automated or monitored, while the remainder requires active human involvement. `
+  } else {
+    narrative = `The ${role.title} role remains primarily human-centered. Only ${Math.round(autoRate * 100)}% of tasks are candidates for automation. `
+  }
+
+  if (humanLedTasks.length > 0) {
+    narrative += `${humanLedTasks.length} task${humanLedTasks.length > 1 ? 's remain' : ' remains'} fundamentally human, anchoring the role's core identity. `
+  }
+
+  if (fullyAutoTasks.length > 0) {
+    narrative += `${fullyAutoTasks.length} task${fullyAutoTasks.length > 1 ? 's are' : ' is'} candidates for full automation, freeing capacity for the higher-value human work that remains.`
+  }
+
+  return <p className="text-sm text-gray-700 leading-relaxed">{narrative}</p>
+}
+
+export default function Step6Synthesis({ role, clusterTags, clusterAnswers }) {
+  const { bucketMap } = useMemo(
+    () => resolveTaskBuckets(role, clusterAnswers, clusterTags),
+    [role, clusterAnswers, clusterTags]
+  )
 
   const assessedCount = Object.values(bucketMap).flat().length
   const totalImpacted = role.tasks.filter((t) => t.impacted).length
+  const clusters = getEnrichedClusters(role).filter((c) => c.impactedCount > 0)
+  const assessedClusters = clusters.filter((c) => {
+    const a = clusterAnswers[c.id] || {}
+    return CORE_QUESTIONS.every((q) => a[q.id])
+  }).length
 
-  // Chart data
+  // Chart data — count individual tasks
   const pieData = Object.entries(BUCKETS).map(([id, b]) => ({
     name: b.label,
     value: (bucketMap[id] || []).length,
@@ -290,10 +340,10 @@ export default function Step6Synthesis({ role, taskTags, taskAnswers }) {
       <div>
         <h2 className="text-2xl font-bold text-bgi-navy mb-1">Synthesis</h2>
         <p className="text-gray-500 text-sm">
-          {assessedCount} of {totalImpacted} AI-impacted tasks assessed.
-          {assessedCount < totalImpacted && (
+          {assessedClusters} of {clusters.length} clusters assessed ({assessedCount} of {totalImpacted} impacted tasks).
+          {assessedClusters < clusters.length && (
             <span className="text-amber-600 ml-1">
-              Go back to Step 5 to assess remaining tasks for a complete picture.
+              Go back to Step 5 to assess remaining clusters.
             </span>
           )}
         </p>
@@ -301,7 +351,7 @@ export default function Step6Synthesis({ role, taskTags, taskAnswers }) {
 
       {assessedCount === 0 ? (
         <Card className="p-8 text-center text-gray-500">
-          No tasks have been assessed yet. Complete Step 5 to see the synthesis.
+          No clusters have been assessed yet. Complete Step 5 to see the synthesis.
         </Card>
       ) : (
         <>
@@ -363,7 +413,7 @@ export default function Step6Synthesis({ role, taskTags, taskAnswers }) {
             </Card>
           </div>
 
-          {/* Task allocation map */}
+          {/* Task allocation map — grouped by cluster within each bucket */}
           <div>
             <h3 className="text-lg font-semibold text-bgi-navy mb-3">Task Allocation Map</h3>
             <div className="grid md:grid-cols-2 gap-4">
@@ -371,12 +421,11 @@ export default function Step6Synthesis({ role, taskTags, taskAnswers }) {
                 const tasks = bucketMap[bucketId] || []
                 if (tasks.length === 0) return null
                 return (
-                  <BucketCard
+                  <ClusterGroupedBucketCard
                     key={bucketId}
                     bucketId={bucketId}
                     tasks={tasks}
-                    taskAnswers={taskAnswers}
-                    taskTags={taskTags}
+                    role={role}
                   />
                 )
               })}
@@ -387,10 +436,10 @@ export default function Step6Synthesis({ role, taskTags, taskAnswers }) {
           <SkillImplications role={role} bucketMap={bucketMap} />
 
           {/* Expertise analysis */}
-          <ExpertiseAnalysis taskAnswers={taskAnswers} bucketMap={bucketMap} />
+          <ExpertiseAnalysis clusterAnswers={clusterAnswers} bucketMap={bucketMap} />
 
           {/* Flags */}
-          <Flags taskTags={taskTags} bucketMap={bucketMap} />
+          <Flags clusterTags={clusterTags} bucketMap={bucketMap} role={role} />
 
           {/* Role narrative */}
           <Card>
@@ -398,42 +447,11 @@ export default function Step6Synthesis({ role, taskTags, taskAnswers }) {
               <CardTitle className="text-base text-bgi-navy">Role-Level Narrative</CardTitle>
             </CardHeader>
             <CardContent>
-              <RoleNarrative role={role} bucketMap={bucketMap} taskAnswers={taskAnswers} />
+              <RoleNarrative role={role} bucketMap={bucketMap} />
             </CardContent>
           </Card>
         </>
       )}
     </div>
   )
-}
-
-function RoleNarrative({ role, bucketMap, taskAnswers }) {
-  const autoCount = (bucketMap['fully-automated']?.length || 0) + (bucketMap['human-on-the-loop']?.length || 0)
-  const humanCount = (bucketMap['human-led']?.length || 0) + (bucketMap['human-in-the-loop']?.length || 0)
-  const total = autoCount + humanCount
-
-  if (total === 0) return <p className="text-sm text-gray-500">Complete task assessments to generate narrative.</p>
-
-  const autoRate = autoCount / total
-  const humanLedTasks = bucketMap['human-led'] || []
-  const fullyAutoTasks = bucketMap['fully-automated'] || []
-
-  let narrative = ''
-  if (autoRate > 0.6) {
-    narrative = `Based on your assessment, the ${role.title} role is poised for significant transformation. Over ${Math.round(autoRate * 100)}% of assessed tasks can be meaningfully automated or operate with minimal human oversight. `
-  } else if (autoRate > 0.3) {
-    narrative = `The ${role.title} role shows a balanced transformation profile. About ${Math.round(autoRate * 100)}% of tasks can be automated or monitored, while the remainder requires active human involvement. `
-  } else {
-    narrative = `The ${role.title} role remains primarily human-centered. Only ${Math.round(autoRate * 100)}% of tasks are candidates for automation. `
-  }
-
-  if (humanLedTasks.length > 0) {
-    narrative += `${humanLedTasks.length} task${humanLedTasks.length > 1 ? 's remain' : ' remains'} fundamentally human, anchoring the role's core identity. `
-  }
-
-  if (fullyAutoTasks.length > 0) {
-    narrative += `${fullyAutoTasks.length} task${fullyAutoTasks.length > 1 ? 's are' : ' is'} candidates for full automation, freeing capacity for the higher-value human work that remains.`
-  }
-
-  return <p className="text-sm text-gray-700 leading-relaxed">{narrative}</p>
 }

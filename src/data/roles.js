@@ -73,6 +73,14 @@ export const ROLES = [
       { id: 'scm-29', text: 'Forecast material costs or develop standard cost lists.', z: -0.20, auto: 0.6, aug: 0.3, impacted: true },
       { id: 'scm-30', text: 'Appraise vendor manufacturing capabilities through on-site observations or other measurements.', z: 0.20, auto: 0.1, aug: 0.3, impacted: true },
     ],
+    clusters: [
+      { id: 'scm-supplier-mgmt', label: 'Supplier Management & Procurement', description: 'Selecting, evaluating, negotiating with, and monitoring suppliers and vendors.', taskIds: ['scm-3', 'scm-4', 'scm-6', 'scm-11', 'scm-26', 'scm-28', 'scm-29', 'scm-30'] },
+      { id: 'scm-strategy-design', label: 'Supply Chain Strategy & Design', description: 'Designing, implementing, or improving supply chain processes and cross-functional coordination.', taskIds: ['scm-12', 'scm-13', 'scm-14', 'scm-25'] },
+      { id: 'scm-analytics-perf', label: 'Analytics, Forecasting & Performance', description: 'Analyzing data, defining metrics, forecasting demand, and evaluating performance.', taskIds: ['scm-8', 'scm-9', 'scm-10', 'scm-27'] },
+      { id: 'scm-logistics-ops', label: 'Logistics & Warehousing Operations', description: 'Transportation routing, warehousing strategy, equipment planning, and materials management.', taskIds: ['scm-1', 'scm-7', 'scm-23', 'scm-24'] },
+      { id: 'scm-documentation', label: 'Documentation & Process Modeling', description: 'Documenting, diagramming, and selecting technology for supply chain processes.', taskIds: ['scm-2', 'scm-5', 'scm-18'] },
+      { id: 'scm-sustainability', label: 'Sustainability & Environmental Compliance', description: 'Environmental impact analysis, green sourcing, reverse logistics, and regulatory compliance.', taskIds: ['scm-15', 'scm-16', 'scm-17', 'scm-19', 'scm-20', 'scm-21', 'scm-22'] },
+    ],
   },
   {
     id: 'hr-specialist',
@@ -114,6 +122,14 @@ export const ROLES = [
       { id: 'hr-24', text: 'Evaluate selection or testing techniques by conducting research or follow-up activities and conferring with management or supervisory personnel.', z: 0.20, auto: 0.3, aug: 0.5, impacted: true },
       { id: 'hr-25', text: 'Review and evaluate applicant qualifications or eligibility for specified licensing, according to established guidelines and designated licensing codes.', z: -0.15, auto: 0.5, aug: 0.3, impacted: true },
       { id: 'hr-26', text: 'Administer employee benefit plans.', z: -0.05, auto: 0.4, aug: 0.3, impacted: true },
+    ],
+    clusters: [
+      { id: 'hr-sourcing', label: 'Sourcing & Candidate Search', description: 'Finding, attracting, and initially screening job candidates through various channels.', taskIds: ['hr-7', 'hr-14', 'hr-22'] },
+      { id: 'hr-evaluation', label: 'Candidate Evaluation & Selection', description: 'Interviewing, testing, reviewing qualifications, and making hiring decisions.', taskIds: ['hr-4', 'hr-11', 'hr-17', 'hr-18', 'hr-20', 'hr-23', 'hr-24', 'hr-25'] },
+      { id: 'hr-communication', label: 'Applicant Communication & Onboarding', description: 'Informing applicants, updating status, processing hires, and conducting orientations.', taskIds: ['hr-6', 'hr-8', 'hr-9', 'hr-19'] },
+      { id: 'hr-employee-relations', label: 'Employee Relations & Workplace Issues', description: 'Addressing employee concerns, handling complaints, and managing separations.', taskIds: ['hr-1', 'hr-3'] },
+      { id: 'hr-policy-compliance', label: 'Policy, Compliance & Management Advisory', description: 'Developing HR policies, maintaining legal knowledge, and advising management.', taskIds: ['hr-5', 'hr-10', 'hr-13', 'hr-16', 'hr-21'] },
+      { id: 'hr-records-admin', label: 'HR Data, Records & Benefits', description: 'Maintaining employment records, analyzing HR data, and administering benefits.', taskIds: ['hr-2', 'hr-12', 'hr-15', 'hr-26'] },
     ],
   },
   {
@@ -159,6 +175,15 @@ export const ROLES = [
       { id: 'aa-29', text: 'Arrange conference, meeting, or travel reservations for office personnel.', z: -0.50, auto: 0.7, aug: 0.1, impacted: true },
       { id: 'aa-30', text: 'Operate electronic mail systems and coordinate the flow of information, internally or with other organizations.', z: -0.25, auto: 0.5, aug: 0.2, impacted: true },
       { id: 'aa-31', text: 'Supervise other clerical staff and provide training and orientation to new staff.', z: 0.00, auto: 0.0, aug: 0.0, impacted: false },
+    ],
+    clusters: [
+      { id: 'aa-documents', label: 'Document Creation & Quality Review', description: 'Composing, formatting, reviewing, and distributing reports, correspondence, and written materials.', taskIds: ['aa-5', 'aa-14', 'aa-15', 'aa-16', 'aa-18'] },
+      { id: 'aa-data-systems', label: 'Data Management & Digital Systems', description: 'Using computers, managing databases, operating email, maintaining websites, and searching for information.', taskIds: ['aa-1', 'aa-2', 'aa-9', 'aa-25', 'aa-30'] },
+      { id: 'aa-records-filing', label: 'Filing, Records & Supplies', description: 'Setting up filing systems, maintaining records, and ordering office supplies.', taskIds: ['aa-3', 'aa-24'] },
+      { id: 'aa-scheduling', label: 'Scheduling, Calendars & Travel', description: 'Managing calendars, scheduling appointments, and arranging travel or meeting reservations.', taskIds: ['aa-20', 'aa-21', 'aa-29'] },
+      { id: 'aa-events', label: 'Events & Conference Coordination', description: 'Planning meetings, coordinating events, and preparing associated materials.', taskIds: ['aa-8', 'aa-11'] },
+      { id: 'aa-front-desk', label: 'Front Desk & Communication', description: 'Answering phones, greeting visitors, providing customer service, and handling inquiries.', taskIds: ['aa-12', 'aa-13', 'aa-26'] },
+      { id: 'aa-office-ops', label: 'Office Operations & Staff Oversight', description: 'Operating equipment, managing workflows, payroll, finances, and supervising clerical staff.', taskIds: ['aa-4', 'aa-6', 'aa-7', 'aa-10', 'aa-17', 'aa-19', 'aa-22', 'aa-23', 'aa-27', 'aa-28', 'aa-31'] },
     ],
   },
 ]
@@ -301,4 +326,28 @@ export const BUCKETS = {
     color: '#C12035',
     description: 'AI handles end-to-end with no routine human involvement.',
   },
+}
+
+// Get enriched cluster data with resolved tasks and avg scores
+export function getEnrichedClusters(role) {
+  const taskMap = Object.fromEntries(role.tasks.map((t) => [t.id, t]))
+  return role.clusters.map((cluster) => {
+    const tasks = cluster.taskIds.map((id) => taskMap[id]).filter(Boolean)
+    const impactedTasks = tasks.filter((t) => t.impacted)
+    const avgAuto = impactedTasks.length > 0
+      ? impactedTasks.reduce((s, t) => s + t.auto, 0) / impactedTasks.length
+      : 0
+    const avgAug = impactedTasks.length > 0
+      ? impactedTasks.reduce((s, t) => s + t.aug, 0) / impactedTasks.length
+      : 0
+    return {
+      ...cluster,
+      tasks,
+      impactedTasks,
+      impactedCount: impactedTasks.length,
+      totalCount: tasks.length,
+      avgAuto,
+      avgAug,
+    }
+  })
 }

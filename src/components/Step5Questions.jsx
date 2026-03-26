@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CORE_QUESTIONS, routeTask, BUCKETS } from '../data/roles'
+import { CORE_QUESTIONS, routeTask, BUCKETS, getEnrichedClusters } from '../data/roles'
 import { Badge } from '@/components/ui/badge'
 import InfoTip from './InfoTip'
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
@@ -32,20 +32,23 @@ function QuestionCard({ question, value, onChange }) {
   )
 }
 
-export default function Step5Questions({ role, taskTags, taskAnswers, onUpdateAnswers }) {
-  const impactedTasks = role.tasks.filter((t) => t.impacted)
+export default function Step5Questions({ role, clusterTags, clusterAnswers, onUpdateAnswers }) {
+  const clusters = getEnrichedClusters(role)
+    .filter((c) => c.impactedCount > 0)
+    .sort((a, b) => b.avgAuto - a.avgAuto)
+
   const [currentIdx, setCurrentIdx] = useState(0)
-  const task = impactedTasks[currentIdx]
+  const cluster = clusters[currentIdx]
 
-  if (!task) return null
+  if (!cluster) return null
 
-  const answers = taskAnswers[task.id] || {}
-  const tags = taskTags[task.id] || []
+  const answers = clusterAnswers[cluster.id] || {}
+  const tags = clusterTags[cluster.id] || []
   const allAnswered = CORE_QUESTIONS.every((q) => answers[q.id])
   const bucket = allAnswered ? routeTask(answers, tags) : null
 
-  const answeredCount = impactedTasks.filter((t) => {
-    const a = taskAnswers[t.id] || {}
+  const answeredCount = clusters.filter((c) => {
+    const a = clusterAnswers[c.id] || {}
     return CORE_QUESTIONS.every((q) => a[q.id])
   }).length
 
@@ -55,11 +58,11 @@ export default function Step5Questions({ role, taskTags, taskAnswers, onUpdateAn
         <div>
           <h2 className="text-2xl font-bold text-bgi-navy mb-1">Task-Level Question Tree</h2>
           <p className="text-gray-500 text-sm">
-            Answer questions for each AI-impacted task to determine its automation bucket.
+            Answer questions for each task cluster to determine its automation bucket. Answers apply to all tasks in the cluster.
           </p>
         </div>
         <Badge variant="outline" className="text-sm whitespace-nowrap">
-          {answeredCount} / {impactedTasks.length} assessed
+          {answeredCount} / {clusters.length} clusters assessed
         </Badge>
       </div>
 
@@ -67,11 +70,11 @@ export default function Step5Questions({ role, taskTags, taskAnswers, onUpdateAn
       <div className="w-full h-1.5 bg-gray-100 rounded-full mb-5 overflow-hidden">
         <div
           className="h-full bg-bgi-navy rounded-full transition-all"
-          style={{ width: `${(answeredCount / impactedTasks.length) * 100}%` }}
+          style={{ width: `${(answeredCount / clusters.length) * 100}%` }}
         />
       </div>
 
-      {/* Task navigator */}
+      {/* Cluster navigator */}
       <div className="flex items-center gap-2 mb-4">
         <button
           onClick={() => setCurrentIdx(Math.max(0, currentIdx - 1))}
@@ -81,27 +84,46 @@ export default function Step5Questions({ role, taskTags, taskAnswers, onUpdateAn
           <ChevronLeft className="h-5 w-5" />
         </button>
         <span className="text-sm text-gray-500">
-          Task {currentIdx + 1} of {impactedTasks.length}
+          Cluster {currentIdx + 1} of {clusters.length}
         </span>
         <button
-          onClick={() => setCurrentIdx(Math.min(impactedTasks.length - 1, currentIdx + 1))}
-          disabled={currentIdx === impactedTasks.length - 1}
+          onClick={() => setCurrentIdx(Math.min(clusters.length - 1, currentIdx + 1))}
+          disabled={currentIdx === clusters.length - 1}
           className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30"
         >
           <ChevronRight className="h-5 w-5" />
         </button>
       </div>
 
-      {/* Current task */}
+      {/* Current cluster */}
       <div className="bg-gray-50 rounded-lg p-4 mb-5 border">
-        <p className="text-gray-800 leading-relaxed">{task.text}</p>
-        <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-          <span>Auto: {(task.auto * 100).toFixed(0)}%</span>
-          <span>Aug: {(task.aug * 100).toFixed(0)}%</span>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="font-semibold text-gray-900">{cluster.label}</span>
+          <Badge variant="outline" className="text-xs">
+            {cluster.impactedCount} tasks
+          </Badge>
+        </div>
+        <p className="text-sm text-gray-500 mb-3">{cluster.description}</p>
+        <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+          <span>Avg Auto: {(cluster.avgAuto * 100).toFixed(0)}%</span>
+          <span>Avg Aug: {(cluster.avgAug * 100).toFixed(0)}%</span>
           {tags.length > 0 && (
             <span className="text-amber-600">Tags: {tags.join(', ')}</span>
           )}
         </div>
+        {/* Task list for context */}
+        <details className="text-sm">
+          <summary className="text-xs text-bgi-navy cursor-pointer hover:underline">
+            View {cluster.impactedCount} tasks in this cluster
+          </summary>
+          <ul className="mt-2 space-y-1 pl-4">
+            {cluster.impactedTasks.map((task) => (
+              <li key={task.id} className="text-gray-600 text-xs list-disc">
+                {task.text}
+              </li>
+            ))}
+          </ul>
+        </details>
       </div>
 
       {/* Questions */}
@@ -111,7 +133,7 @@ export default function Step5Questions({ role, taskTags, taskAnswers, onUpdateAn
           question={q}
           value={answers[q.id]}
           onChange={(val) => {
-            onUpdateAnswers(task.id, { ...answers, [q.id]: val })
+            onUpdateAnswers(cluster.id, { ...answers, [q.id]: val })
           }}
         />
       ))}
@@ -127,29 +149,29 @@ export default function Step5Questions({ role, taskTags, taskAnswers, onUpdateAn
             <p className="font-semibold" style={{ color: BUCKETS[bucket].color }}>
               {BUCKETS[bucket].label}
             </p>
-            <p className="text-sm text-gray-600">{BUCKETS[bucket].description}</p>
+            <p className="text-sm text-gray-600">
+              {BUCKETS[bucket].description} All {cluster.impactedCount} tasks in this cluster receive this assignment.
+            </p>
           </div>
         </div>
       )}
 
       {/* Quick nav dots */}
       <div className="flex flex-wrap gap-1.5 mt-6 pt-4 border-t">
-        {impactedTasks.map((t, i) => {
-          const a = taskAnswers[t.id] || {}
+        {clusters.map((c, i) => {
+          const a = clusterAnswers[c.id] || {}
           const done = CORE_QUESTIONS.every((q) => a[q.id])
-          const b = done ? routeTask(a, taskTags[t.id] || []) : null
+          const b = done ? routeTask(a, clusterTags[c.id] || []) : null
           return (
             <button
-              key={t.id}
+              key={c.id}
               onClick={() => setCurrentIdx(i)}
-              title={t.text.substring(0, 60) + '...'}
-              className={`w-6 h-6 rounded text-xs font-medium transition-all ${
-                i === currentIdx
-                  ? 'ring-2 ring-bgi-navy ring-offset-1'
-                  : ''
+              title={c.label}
+              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
+                i === currentIdx ? 'ring-2 ring-bgi-navy ring-offset-1' : ''
               }`}
               style={{
-                backgroundColor: b ? BUCKETS[b].color + '30' : done ? '#e5e7eb' : '#f9fafb',
+                backgroundColor: b ? BUCKETS[b].color + '30' : '#f9fafb',
                 color: b ? BUCKETS[b].color : '#9ca3af',
                 border: `1px solid ${b ? BUCKETS[b].color + '50' : '#e5e7eb'}`,
               }}

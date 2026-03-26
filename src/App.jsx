@@ -20,8 +20,8 @@ export default function App() {
   const [intent, setIntent] = useState(null)
   const [roleId, setRoleId] = useState(null)
 
-  const [taskTags, setTaskTags] = useState({})
-  const [taskAnswers, setTaskAnswers] = useState({})
+  const [clusterTags, setClusterTags] = useState({})
+  const [clusterAnswers, setClusterAnswers] = useState({})
 
   const selectedRole = ROLES.find((r) => r.id === roleId)
 
@@ -87,27 +87,27 @@ export default function App() {
           {currentStep === 4 && selectedRole && (
             <Step4Tags
               role={selectedRole}
-              taskTags={taskTags}
-              onUpdateTags={(taskId, tags) =>
-                setTaskTags((prev) => ({ ...prev, [taskId]: tags }))
+              clusterTags={clusterTags}
+              onUpdateTags={(clusterId, tags) =>
+                setClusterTags((prev) => ({ ...prev, [clusterId]: tags }))
               }
             />
           )}
           {currentStep === 5 && selectedRole && (
             <Step5Questions
               role={selectedRole}
-              taskTags={taskTags}
-              taskAnswers={taskAnswers}
-              onUpdateAnswers={(taskId, answers) =>
-                setTaskAnswers((prev) => ({ ...prev, [taskId]: answers }))
+              clusterTags={clusterTags}
+              clusterAnswers={clusterAnswers}
+              onUpdateAnswers={(clusterId, answers) =>
+                setClusterAnswers((prev) => ({ ...prev, [clusterId]: answers }))
               }
             />
           )}
           {currentStep === 6 && selectedRole && (
             <Step6Synthesis
               role={selectedRole}
-              taskTags={taskTags}
-              taskAnswers={taskAnswers}
+              clusterTags={clusterTags}
+              clusterAnswers={clusterAnswers}
             />
           )}
         </main>
